@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grille d'observation SIO</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Carlito:wght@400;700&display=swap">
+<style>
+/* Layout : une colonne de lecture (max 760px), en-tête navy à filet or, sections numérotées A→F comme la grille papier, barre de total collante en bas */
+:root {
+  --navy: #1b2a4a; --gold: #c9a227; --gold-soft: #f1e6c4;
+  --bg: #faf7f0; --surface: #ffffff; --ink: #22252b; --muted: #5d6270; --line: #e4dccb;
+  --on-navy: #ffffff; --on-navy-muted: #c9cfdc;
+  --sel: #1b2a4a; --sel-ink: #ffffff;
+  --good: #1f6b3a; --warn: #a3631a; --bad: #a33a2a;
+  --serif: Georgia, "Liberation Serif", "DejaVu Serif", serif;
+  --sans: Carlito, Calibri, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12192b; --surface: #1a2338; --ink: #e8e9ee; --muted: #a5abba; --line: #2c3753;
+  --gold-soft: #3a3320; --sel: #c9a227; --sel-ink: #1b2a4a;
+  --good: #6fc48c; --warn: #e0a85a; --bad: #e88a7a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12192b; --surface: #1a2338; --ink: #e8e9ee; --muted: #a5abba; --line: #2c3753;
+  --gold-soft: #3a3320; --sel: #c9a227; --sel-ink: #1b2a4a;
+  --good: #6fc48c; --warn: #e0a85a; --bad: #e88a7a; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.45; margin: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--navy); }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); margin: 0; text-wrap: balance; }
+
+header { background: var(--navy); color: var(--on-navy); border-bottom: 5px solid var(--gold); padding-block: 22px 18px; }
+.kicker { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 700; }
+header h1 { font-size: 26px; margin-top: 4px; color: var(--on-navy); }
+header p { margin: 6px 0 0; color: var(--on-navy-muted); font-size: 14.5px; }
+
+main { padding-block: 18px 120px; display: grid; gap: 22px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.ident { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .ident { grid-template-columns: 1fr; } }
+label.f { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+input[type=text], select, textarea {
+  font: inherit; font-size: 16px; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; padding: 9px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 44px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+.scale { font-size: 13.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.scale b { color: var(--ink); }
+
+.sec-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.letter { background: var(--gold); color: #1b2a4a; font-weight: 700; font-family: var(--sans); width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.sec-head h2 { font-size: 19px; flex: 1; min-width: 0; }
+.sec-score { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted); font-size: 14px; white-space: nowrap; }
+
+.crit { border-top: 1px solid var(--line); padding-block: 12px; display: grid; gap: 8px; }
+.crit:first-of-type { border-top: 0; padding-top: 2px; }
+.crit-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; justify-content: space-between; }
+.crit-label { flex: 1 1 260px; min-width: 0; font-weight: 700; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; flex: none; }
+.seg button { font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; width: 44px; height: 40px; border: 0; border-left: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink); }
+.crit textarea { font-size: 15px; }
+
+.bilan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .bilan-grid { grid-template-columns: 1fr; } }
+.choice { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice button { font: inherit; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+.choice button[aria-pressed="true"] { background: var(--sel); color: var(--sel-ink); border-color: var(--sel); }
+.table-wrap { overflow-x: auto; }
+table.recap { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 15px; }
+table.recap td { padding: 7px 4px; border-bottom: 1px solid var(--line); }
+table.recap td:last-child { text-align: right; font-weight: 700; }
+table.recap tr.total td { border-bottom: 0; font-size: 17px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn { font: inherit; font-weight: 700; padding: 11px 16px; border-radius: 8px; border: 1px solid var(--navy); background: var(--navy); color: #fff; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+.confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 14.5px; }
+.note { font-size: 13.5px; color: var(--muted); }
+#copyFallback { width: 100%; min-height: 160px; font-size: 13px; }
+
+.totalbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--navy); color: #fff; border-top: 3px solid var(--gold);
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); padding-top: 10px; }
+.totalbar .wrap { display: flex; align-items: center; gap: 14px; }
+.tb-num { font-family: var(--serif); font-size: 24px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tb-num small { font-family: var(--sans); font-size: 14px; color: var(--on-navy-muted); }
+.meter { flex: 1; height: 8px; border-radius: 4px; background: rgba(255,255,255,.18); overflow: hidden; min-width: 0; }
+.meter i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .25s; }
+.tb-fill { font-size: 13px; color: var(--on-navy-muted); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .meter i { transition: none; } }
+
+.report { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 10px; }
+.report h3 { font-size: 18px; }
+.rp-meta { color: var(--muted); font-size: 14px; }
+.rp-total { font-family: var(--serif); font-size: 22px; font-variant-numeric: tabular-nums; }
+.rp-sec { border-top: 1px solid var(--line); padding-top: 8px; }
+.rp-sec h4 { margin: 0 0 4px; font-size: 15px; display: flex; justify-content: space-between; gap: 10px; }
+.rp-sec ul { margin: 0; padding-left: 18px; font-size: 14px; } .rp-sec li { margin: 2px 0; }
+.rp-sec .n { color: var(--muted); }
+.rp-txt { white-space: pre-wrap; font-size: 14.5px; margin: 0; }
+.share { display: flex; flex-wrap: wrap; gap: 8px; }
+.share .btn { padding: 9px 13px; font-size: 15px; }
+.mode { display: flex; flex-wrap: wrap; gap: 8px; }
+@media print {
+  header, .totalbar, #sections, .card:not(#reportCard), .scale, .share, .mode, .rp-hide-print { display: none !important; }
+  body { background: #fff; color: #000; } main { padding: 0; } #reportCard { border: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">SAé Coaching SIO · Simulation d'entretien en trio</div>
+    <h1>Grille d'observation</h1>
+    <p>Note pendant l'entretien : touche une note de 1 à 4 et écris ce que tu as vu ou entendu. Tout s'enregistre sur cet appareil, et le compte rendu se partage en un geste.</p>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <section class="card" aria-label="Identification">
+    <div class="ident">
+      <label class="f" for="candidat">Candidat<input type="text" id="candidat" autocomplete="off" placeholder="Prénom Nom"></label>
+      <label class="f" for="observateur">Observateur<input type="text" id="observateur" autocomplete="off" placeholder="Prénom Nom"></label>
+      <label class="f" for="offre">Offre
+        <select id="offre">
+          <option value="">Choisir…</option>
+          <option>Offre 1 · Support et réseau · ESN</option>
+          <option>Offre 2 · Administrateur systèmes · Collectivité</option>
+          <option>Offre 3 · Infrastructure · Industrie</option>
+        </select>
+      </label>
+      <label class="f" for="duree">Durée du pitch (min)<input type="text" id="duree" inputmode="decimal" autocomplete="off" placeholder="ex. 2,5"></label>
+    </div>
+  </section>
+
+  <div class="scale" aria-label="Échelle de notation">
+    <span><b>1</b> absent ou à reprendre</span><span><b>2</b> fragile</span><span><b>3</b> correct</span><span><b>4</b> convaincant</span>
+  </div>
+
+  <div id="sections"></div>
+
+  <section class="card" aria-labelledby="h-bilan">
+    <div class="sec-head"><span class="letter">Σ</span><h2 id="h-bilan">Bilan</h2></div>
+    <div class="table-wrap"><table class="recap" id="recap"></table></div>
+  </section>
+
+  <section class="card" aria-labelledby="h-retour">
+    <div class="sec-head"><span class="letter">✎</span><h2 id="h-retour">Retour pour le débrief</h2></div>
+    <div class="bilan-grid">
+      <label class="f" for="forts">3 points forts<textarea id="forts" rows="4" placeholder="Des faits observés, pas des adjectifs"></textarea></label>
+      <label class="f" for="axes">2 axes de progrès prioritaires<textarea id="axes" rows="4" placeholder="Ce que j'ai vu + l'effet produit + une piste concrète"></textarea></label>
+    </div>
+    <div style="margin-top:14px; display:grid; gap:8px">
+      <span class="f" id="rappel-label" style="font-size:13px;color:var(--muted);font-weight:700">Si j'étais le recruteur, je le rappellerais ?</span>
+      <div class="choice" role="group" aria-labelledby="rappel-label" id="rappel">
+        <button type="button" data-v="Oui" aria-pressed="false">Oui</button>
+        <button type="button" data-v="Peut-être" aria-pressed="false">Peut-être</button>
+        <button type="button" data-v="Pas encore" aria-pressed="false">Pas encore</button>
+      </div>
+      <label class="f" for="pourquoi">Parce que<textarea id="pourquoi" rows="2"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="h-plan">
+    <div class="sec-head"><span class="letter">→</span><h2 id="h-plan">Plan de progrès du candidat</h2></div>
+    <div style="display:grid; gap:12px">
+      <label class="f" for="garde">Ce que je réussis déjà et que je garde<textarea id="garde" rows="2"></textarea></label>
+      <label class="f" for="axe1">Axe n° 1 et ce que je vais faire concrètement<textarea id="axe1" rows="2"></textarea></label>
+      <label class="f" for="axe2">Axe n° 2 et ce que je vais faire concrètement<textarea id="axe2" rows="2"></textarea></label>
+      <label class="f" for="question">La question que je dois mieux préparer<textarea id="question" rows="2"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card" id="reportCard" aria-labelledby="h-cr">
+    <div class="sec-head"><span class="letter">✉</span><h2 id="h-cr">Compte rendu à envoyer</h2></div>
+    <div class="mode rp-hide-print" role="group" aria-label="Contenu du compte rendu" id="mode">
+      <span class="note" style="align-self:center">Contenu :</span>
+      <div class="choice">
+        <button type="button" data-v="complet" aria-pressed="true">Complet</button>
+        <button type="button" data-v="synthese" aria-pressed="false">Synthèse</button>
+      </div>
+    </div>
+    <div class="report" id="report" style="margin-top:12px"></div>
+    <div class="share" style="margin-top:12px">
+      <button type="button" class="btn" id="shareBtn" hidden>Partager…</button>
+      <a class="btn" id="mailBtn" href="#">Envoyer par mail</a>
+      <a class="btn" id="waBtn" href="#" target="_blank" rel="noopener">WhatsApp</a>
+      <a class="btn ghost" id="smsBtn" href="#">SMS</a>
+      <button type="button" class="btn ghost" id="copy">Copier</button>
+      <button type="button" class="btn ghost" id="dlBtn">Télécharger (.txt)</button>
+      <button type="button" class="btn ghost" id="printBtn">Imprimer / PDF</button>
+    </div>
+    <p class="note" id="copyMsg" role="status" style="margin:10px 0 0"></p>
+    <textarea id="copyFallback" hidden readonly aria-label="Compte rendu à copier"></textarea>
+  </section>
+
+  <section class="card rp-hide-print" aria-label="Nouvelle grille">
+    <div class="actions"><button type="button" class="btn ghost" id="reset">Nouvelle grille</button></div>
+    <div class="confirm" id="confirmBox" hidden style="margin-top:12px">
+      <span>Effacer toutes les notes de cette grille ?</span>
+      <button type="button" class="btn danger" id="resetYes">Effacer</button>
+      <button type="button" class="btn ghost" id="resetNo">Annuler</button>
+    </div>
+    <p class="note" style="margin:10px 0 0">Les notes restent sur cet appareil et ce navigateur uniquement. Envoie le compte rendu avant d'effacer la grille.</p>
+  </section>
+</main>
+
+<div class="totalbar" aria-live="polite">
+  <div class="wrap">
+    <div class="tb-num" id="tbNum">0 <small>/ 72</small></div>
+    <div class="meter" aria-hidden="true"><i id="tbBar"></i></div>
+    <div class="tb-fill" id="tbFill">0 / 18 critères</div>
+  </div>
+</div>
+
+<script>
+const SECTIONS = [
+  { id: "A", title: "Accueil et première impression", items: [
+    "Salue, sourit, regarde le recruteur",
+    "Attend d'être invité à s'asseoir, posture droite" ]},
+  { id: "B", title: "La présentation (pitch)", items: [
+    "Structurée : qui je suis, ce que je sais faire, qui je suis au travail, pourquoi vous",
+    "Appuyée sur des réalisations concrètes",
+    "Durée adaptée (2 à 3 min)" ]},
+  { id: "C", title: "Les réponses aux questions", items: [
+    "Connaît l'entreprise et fait le lien avec l'offre",
+    "Raconte ses expériences avec méthode (situation, tâche, action, résultat)",
+    "Répond à la question posée, sans s'égarer",
+    "Qualités et défaut illustrés et crédibles" ]},
+  { id: "D", title: "Les compétences techniques SISR", items: [
+    "Vocabulaire technique juste et expliqué simplement",
+    "Mise en situation : démarche logique, du simple au complexe",
+    "Face à une question inconnue : le reconnaît et propose une démarche" ]},
+  { id: "E", title: "Communication non verbale et paraverbale", items: [
+    "Regard : soutient le regard sans le fixer",
+    "Posture et gestes : calmes, mains visibles, pas de tics",
+    "Voix : audible, débit posé, peu de « euh »",
+    "Registre : vouvoiement, langage professionnel" ]},
+  { id: "F", title: "Fin d'entretien", items: [
+    "Pose des questions pertinentes au recruteur",
+    "Conclut en confirmant sa motivation, salue" ]},
+];
+const TOTAL_ITEMS = SECTIONS.reduce((n, s) => n + s.items.length, 0);
+const MAX = TOTAL_ITEMS * 4;
+const KEY = "grille-observation-sio-v1";
+const FIELDS = ["candidat","observateur","offre","duree","forts","axes","pourquoi","garde","axe1","axe2","question"];
+
+let mode = "complet";
+let state = { scores: {}, notes: {}, fields: {}, rappel: "" };
+try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch (e) {}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+const host = document.getElementById("sections");
+SECTIONS.forEach(sec => {
+  const card = document.createElement("section");
+  card.className = "card";
+  card.setAttribute("aria-labelledby", "h-" + sec.id);
+  card.innerHTML = `<div class="sec-head"><span class="letter">${sec.id}</span><h2 id="h-${sec.id}">${sec.title}</h2><span class="sec-score" id="ss-${sec.id}"></span></div>`;
+  sec.items.forEach((label, i) => {
+    const k = sec.id + i;
+    const row = document.createElement("div");
+    row.className = "crit";
+    row.innerHTML = `
+      <div class="crit-top">
+        <span class="crit-label" id="l-${k}">${label}</span>
+        <div class="seg" role="group" aria-labelledby="l-${k}">
+          ${[1,2,3,4].map(v => `<button type="button" data-k="${k}" data-v="${v}" aria-pressed="false" aria-label="Note ${v}">${v}</button>`).join("")}
+        </div>
+      </div>
+      <textarea id="n-${k}" rows="1" placeholder="Faits observés…" aria-label="Faits observés : ${label}"></textarea>`;
+    card.appendChild(row);
+  });
+  host.appendChild(card);
+});
+
+host.addEventListener("click", e => {
+  const b = e.target.closest(".seg button"); if (!b) return;
+  const k = b.dataset.k, v = +b.dataset.v;
+  state.scores[k] = state.scores[k] === v ? undefined : v;
+  if (state.scores[k] === undefined) delete state.scores[k];
+  save(); render();
+});
+host.addEventListener("input", e => {
+  if (e.target.matches("textarea[id^='n-']")) { state.notes[e.target.id.slice(2)] = e.target.value; save(); renderReport(); }
+});
+FIELDS.forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", () => { state.fields[id] = el.value; save(); renderReport(); });
+  el.addEventListener("change", () => { state.fields[id] = el.value; save(); });
+});
+document.getElementById("rappel").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  state.rappel = state.rappel === b.dataset.v ? "" : b.dataset.v; save(); render();
+});
+
+function secTotal(sec) {
+  let pts = 0, done = 0;
+  sec.items.forEach((_, i) => { const v = state.scores[sec.id + i]; if (v) { pts += v; done++; } });
+  return { pts, done, max: sec.items.length * 4 };
+}
+
+function render() {
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", String(state.scores[b.dataset.k] === +b.dataset.v)));
+  document.querySelectorAll("textarea[id^='n-']").forEach(t => { const v = state.notes[t.id.slice(2)] || ""; if (t.value !== v) t.value = v; });
+  FIELDS.forEach(id => { const el = document.getElementById(id); const v = state.fields[id] || ""; if (el.value !== v) el.value = v; });
+  document.querySelectorAll("#rappel button").forEach(b => b.setAttribute("aria-pressed", String(state.rappel === b.dataset.v)));
+
+  let total = 0, done = 0, rows = "";
+  SECTIONS.forEach(sec => {
+    const t = secTotal(sec); total += t.pts; done += t.done;
+    document.getElementById("ss-" + sec.id).textContent = `${t.pts} / ${t.max}`;
+    rows += `<tr><td>${sec.id} · ${sec.title}</td><td>${t.pts} / ${t.max}</td></tr>`;
+  });
+  rows += `<tr class="total"><td>Total</td><td>${total} / ${MAX}</td></tr>`;
+  document.getElementById("recap").innerHTML = rows;
+  document.getElementById("tbNum").innerHTML = `${total} <small>/ ${MAX}</small>`;
+  document.getElementById("tbBar").style.width = (total / MAX * 100) + "%";
+  document.getElementById("tbFill").textContent = `${done} / ${TOTAL_ITEMS} critères`;
+  if (typeof renderReport === "function") renderReport();
+}
+
+const esc = t => String(t).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function totals() { let total = 0; const per = SECTIONS.map(sec => { const t = secTotal(sec); total += t.pts; return t; }); return { total, per }; }
+
+function reportText() {
+  const f = state.fields, L = [], { total, per } = totals();
+  L.push("COMPTE RENDU · SIMULATION D'ENTRETIEN");
+  L.push(`Candidat : ${f.candidat || "—"}`);
+  L.push(`Observateur : ${f.observateur || "—"}`);
+  L.push(`${f.offre || "Offre non précisée"}${f.duree ? " · Pitch : " + f.duree + " min" : ""}`);
+  L.push("", `NOTE GLOBALE : ${total}/${MAX}`);
+  SECTIONS.forEach((sec, si) => {
+    const t = per[si];
+    L.push("", `${sec.id}. ${sec.title} : ${t.pts}/${t.max}`);
+    if (mode === "complet") sec.items.forEach((label, i) => {
+      const k = sec.id + i, v = state.scores[k], n = (state.notes[k] || "").trim();
+      L.push(`  - ${label} : ${v || "–"}/4${n ? "\n    → " + n : ""}`);
+    });
+  });
+  L.push("", "POINTS FORTS", f.forts || "—", "", "AXES DE PROGRÈS", f.axes || "—");
+  L.push("", `Je le rappellerais : ${state.rappel || "—"}${f.pourquoi ? " (" + f.pourquoi + ")" : ""}`);
+  if (f.garde || f.axe1 || f.axe2 || f.question) {
+    L.push("", "PLAN DE PROGRÈS");
+    if (f.garde) L.push(`Je garde : ${f.garde}`);
+    if (f.axe1) L.push(`Axe 1 : ${f.axe1}`);
+    if (f.axe2) L.push(`Axe 2 : ${f.axe2}`);
+    if (f.question) L.push(`Question à préparer : ${f.question}`);
+  }
+  return L.join("\n");
+}
+
+function renderReport() {
+  const f = state.fields, { total, per } = totals();
+  let h = `<h3>Simulation d'entretien · ${esc(f.candidat || "Candidat")}</h3>
+    <div class="rp-meta">Observé par ${esc(f.observateur || "—")} · ${esc(f.offre || "Offre non précisée")}${f.duree ? " · pitch " + esc(f.duree) + " min" : ""}</div>
+    <div class="rp-total">${total} / ${MAX}</div>`;
+  SECTIONS.forEach((sec, si) => {
+    const t = per[si];
+    h += `<div class="rp-sec"><h4><span>${sec.id} · ${esc(sec.title)}</span><span>${t.pts} / ${t.max}</span></h4>`;
+    if (mode === "complet") {
+      h += "<ul>" + sec.items.map((label, i) => {
+        const k = sec.id + i, v = state.scores[k], n = (state.notes[k] || "").trim();
+        return `<li>${esc(label)} : <b>${v || "–"}/4</b>${n ? ` <span class="n">· ${esc(n)}</span>` : ""}</li>`;
+      }).join("") + "</ul>";
+    }
+    h += "</div>";
+  });
+  h += `<div class="rp-sec"><h4>Points forts</h4><p class="rp-txt">${esc(f.forts || "—")}</p></div>
+    <div class="rp-sec"><h4>Axes de progrès</h4><p class="rp-txt">${esc(f.axes || "—")}</p></div>
+    <div class="rp-sec"><h4>Je le rappellerais</h4><p class="rp-txt">${esc(state.rappel || "—")}${f.pourquoi ? " · " + esc(f.pourquoi) : ""}</p></div>`;
+  document.getElementById("report").innerHTML = h;
+  const text = reportText(), subj = `Compte rendu simulation d'entretien${f.candidat ? " · " + f.candidat : ""}`;
+  document.getElementById("mailBtn").href = `mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`;
+  document.getElementById("waBtn").href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  document.getElementById("smsBtn").href = `sms:?&body=${encodeURIComponent(text)}`;
+}
+
+const shareBtn = document.getElementById("shareBtn");
+if (navigator.share) shareBtn.hidden = false;
+shareBtn.addEventListener("click", () => {
+  navigator.share({ title: "Compte rendu simulation d'entretien", text: reportText() }).catch(() => {});
+});
+document.getElementById("mode").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  mode = b.dataset.v;
+  document.querySelectorAll("#mode button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  renderReport();
+});
+
+const msg = document.getElementById("copyMsg"), fb = document.getElementById("copyFallback");
+document.getElementById("copy").addEventListener("click", () => {
+  const text = reportText();
+  const fallback = () => { fb.value = text; fb.hidden = false; fb.focus(); fb.select(); msg.textContent = "Sélectionne le texte ci-dessous et copie-le."; };
+  try { navigator.clipboard.writeText(text).then(() => { fb.hidden = true; msg.textContent = "Compte rendu copié."; }, fallback); }
+  catch (e) { fallback(); }
+});
+document.getElementById("dlBtn").addEventListener("click", () => {
+  const f = state.fields;
+  const name = "compte-rendu-" + ((f.candidat || "candidat").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase()) + ".txt";
+  const url = URL.createObjectURL(new Blob([reportText()], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+document.getElementById("printBtn").addEventListener("click", () => window.print());
+
+const box = document.getElementById("confirmBox");
+document.getElementById("reset").addEventListener("click", () => { box.hidden = false; });
+document.getElementById("resetNo").addEventListener("click", () => { box.hidden = true; });
+document.getElementById("resetYes").addEventListener("click", () => {
+  state = { scores: {}, notes: {}, fields: {}, rappel: "" }; save(); box.hidden = true; fb.hidden = true;
+  msg.textContent = "Grille effacée. Prête pour le prochain candidat."; render(); window.scrollTo(0, 0);
+});
+
+render();
+</script>
+</body>
+</html>
